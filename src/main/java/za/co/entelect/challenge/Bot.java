@@ -123,7 +123,6 @@ public class Bot {
 
     }
 
-
     public Command run() {
         if (gameState.currentRound >= 20 && currentWorm == PredictTargetedWorm() && wormAlone(currentWorm)){
             Command toOther = toOtherWorm();
@@ -172,6 +171,36 @@ public class Bot {
         }
 
         return null;
+    }
+
+    private Worm getClosestOpponent(){
+        Worm resultWorm = null;
+        int minimum = 999999;
+        for(Worm enemyWorm : opponent.worms){
+            if(enemyWorm.health >0 ){
+                int distance = euclideanDistance(currentWorm.position.x, currentWorm.position.y, enemyWorm.position.x, enemyWorm.position.y);
+                if(distance < minimum) {
+                    minimum = distance;
+                    resultWorm = enemyWorm;
+                }
+            } else {
+                continue;
+            }
+        }
+        return resultWorm;
+    }
+    private Worm getLowestHealthOpponent(){
+        Worm resultWorm = null;
+        int minimumHealth = 999999;
+        for(Worm enemyWorm : opponent.worms) {
+            if ((enemyWorm.health > 0) && (enemyWorm.health < minimumHealth)) {
+                minimumHealth = enemyWorm.health;
+                resultWorm = enemyWorm;
+            } else {
+                continue;
+            }
+        }
+        return resultWorm;
     }
 
     private List<List<Cell>> constructFireDirectionLines(int range) {
