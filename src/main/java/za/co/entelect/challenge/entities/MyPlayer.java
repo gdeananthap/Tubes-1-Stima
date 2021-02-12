@@ -14,4 +14,9 @@ public class MyPlayer {
 
     @SerializedName("worms")
     public MyWorm[] worms;
+
+//    Tambahan Sendiri
+
+    @SerializedName("remainingWormSelections")
+    public int remainSelect;
 }

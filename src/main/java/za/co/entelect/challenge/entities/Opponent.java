@@ -11,4 +11,11 @@ public class Opponent {
 
     @SerializedName("worms")
     public Worm[] worms;
+
+    // Tambahan Sendiri
+    @SerializedName("currentWormId")
+    public int opponentCurrentWormId;
+
+    @SerializedName("previousCommand")
+    public String opponentPreviousCommand;
 }
