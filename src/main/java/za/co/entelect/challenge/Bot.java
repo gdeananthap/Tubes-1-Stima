@@ -209,7 +209,7 @@ public class Bot {
     }
 
     private List<Worm> getAllShootedWorm() {
-        Set<String> cells = constructFireDirectionLines(currentWorm.weapon.range)
+        Set<String> cells = constructFireDirectionLines(currentWorm, currentWorm.weapon.range)
                 .stream()
                 .flatMap(Collection::stream)
                 .map(cell -> String.format("%d_%d", cell.x, cell.y))
@@ -373,6 +373,7 @@ public class Bot {
         }
         return resultWorm;
     }
+
     private Worm getLowestHealthOpponent(){
         Worm resultWorm = null;
         int minimumHealth = 999999;
@@ -387,20 +388,37 @@ public class Bot {
         return resultWorm;
     }
 
-    private List<List<Cell>> constructFireDirectionLines(int range) {
+    private Set<Cell> getDangerousCells() {
+        Set<Cell> cells = new HashSet<>();
+        for (Worm enemyWorm : opponent.worms){
+            if (enemyWorm.health > 0) {
+                Position enemyPos = enemyWorm.position;
+                List<Cell> curEnemyWormCells = constructFireDirectionLines(enemyWorm, 4)
+                    .stream()
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList());
+
+                cells.addAll(curEnemyWormCells);
+            }
+        }
+
+        return cells;
+    }
+
+    private List<List<Cell>> constructFireDirectionLines(Worm worm, int range) {
         List<List<Cell>> directionLines = new ArrayList<>();
         for (Direction direction : Direction.values()) {
             List<Cell> directionLine = new ArrayList<>();
             for (int directionMultiplier = 1; directionMultiplier <= range; directionMultiplier++) {
 
-                int coordinateX = currentWorm.position.x + (directionMultiplier * direction.x);
-                int coordinateY = currentWorm.position.y + (directionMultiplier * direction.y);
+                int coordinateX = worm.position.x + (directionMultiplier * direction.x);
+                int coordinateY = worm.position.y + (directionMultiplier * direction.y);
 
                 if (!isValidCoordinate(coordinateX, coordinateY)) {
                     break;
                 }
 
-                if (euclideanDistance(currentWorm.position.x, currentWorm.position.y, coordinateX, coordinateY) > range) {
+                if (euclideanDistance(worm.position.x, worm.position.y, coordinateX, coordinateY) > range) {
                     break;
                 }
 
