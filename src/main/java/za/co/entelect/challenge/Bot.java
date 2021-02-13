@@ -11,6 +11,20 @@ import java.util.stream.Collectors;
 
 public class Bot {
 
+    public class CellandBombDamage {
+        public CellandBombDamage(Cell x, int y){
+            cell = x;
+            damageToEnemy = y;
+        }
+
+        public int getDamageToEnemy() {
+            return damageToEnemy;
+        }
+
+        private Cell cell;
+        private int damageToEnemy;
+    }
+
     private Random random;
     private GameState gameState;
     private Opponent opponent;
@@ -71,10 +85,11 @@ public class Bot {
             return null;
         }
     }
-    boolean wormAlone(Worm inDanger){
+
+    boolean wormAlone(){
         boolean alone = true;
         for (Worm myWorm : myPlayer.worms){
-            if (myWorm != inDanger && myWorm.health>0 && euclideanDistance(myWorm.position.x,myWorm.position.y,inDanger.position.x,inDanger.position.y) >= 4){
+            if (myWorm != currentWorm && myWorm.health>0 && euclideanDistance(myWorm.position.x,myWorm.position.y,currentWorm.position.x,currentWorm.position.y) <= 3){
                 alone = false;
             }
         }
@@ -104,11 +119,10 @@ public class Bot {
 
     }
 
-    Command toOtherWorm (){
-    //  Mendekat ke worm teman (yang paling dekat)
-        Worm otherWorm = findClosestFriendWorm(gameState);
-        if (otherWorm != null){
-            Direction toOther = resolveDirection(currentWorm.position, otherWorm.position);
+    Command toOtherWorm (Worm target){
+    //  Mendekat ke worm lain (yang paling dekat)
+        if (target != null){
+            Direction toOther = resolveDirection(currentWorm.position, target.position);
             Cell SelectedBlock = gameState.map[currentWorm.position.y + toOther.y][currentWorm.position.x + toOther.x];
             if (SelectedBlock.type == CellType.AIR) {
                 return new MoveCommand(SelectedBlock.x, SelectedBlock.y);
@@ -124,21 +138,40 @@ public class Bot {
     }
 
     public Command run() {
-        if (gameState.currentRound >= 20 && currentWorm == PredictTargetedWorm() && wormAlone(currentWorm)){
-            Command toOther = toOtherWorm();
-            if(toOther != null){
-                return toOther;
-            }
-        }
         Command toCentre = GetToCentre();
         if (toCentre != null){
             return toCentre;
         }
-        Worm enemyWorm = getFirstWormInRange();
-        if (enemyWorm != null) {
-            Direction direction = resolveDirection(currentWorm.position, enemyWorm.position);
+
+        //        Attacking Without Danger
+        List<CellandBombDamage> bombedLocation = new ArrayList<>();
+        bombedLocation= getAllBombedLocation();
+        if (!bombedLocation.isEmpty()){
+            bombedLocation.sort(Comparator.comparing(CellandBombDamage::getDamageToEnemy).reversed());
+            System.out.println("Bombing enemy worm");
+            return new BananaCommand(bombedLocation.get(0).cell.x,bombedLocation.get(0).cell.y);
+        }
+
+        List<Worm> shootedEnemyWorm = new ArrayList<>();
+        shootedEnemyWorm = getAllShootedWorm();
+        if (!shootedEnemyWorm.isEmpty()){
+            shootedEnemyWorm.sort(Comparator.comparing(Worm::getHealth));
+            System.out.println("Shooting worm");
+            Direction direction = resolveDirection(currentWorm.position, shootedEnemyWorm.get(0).position);
             return new ShootCommand(direction);
         }
+
+        if (gameState.currentRound >= 20 && currentWorm != PredictTargetedWorm() &&wormAlone()){
+            Command toOther = toOtherWorm(PredictTargetedWorm());
+            if(toOther != null){
+                return toOther;
+            }
+        }
+
+//        if (enemyWorm != null) {
+//            Direction direction = resolveDirection(currentWorm.position, enemyWorm.position);
+//            return new ShootCommand(direction);
+//        }
 
         List<Cell> surroundingBlocks = getSurroundingCells(currentWorm.position.x, currentWorm.position.y);
         int cellIdx = random.nextInt(surroundingBlocks.size());
@@ -153,25 +186,83 @@ public class Bot {
         return new DoNothingCommand();
     }
 
-    private Worm getFirstWormInRange() {
-
+    private List<Worm> getAllShootedWorm() {
         Set<String> cells = constructFireDirectionLines(currentWorm.weapon.range)
                 .stream()
                 .flatMap(Collection::stream)
                 .map(cell -> String.format("%d_%d", cell.x, cell.y))
                 .collect(Collectors.toSet());
 
+        List<Worm> wormInRange = new ArrayList<>();
         for (Worm enemyWorm : opponent.worms) {
             if (enemyWorm.health > 0) {
                 String enemyPosition = String.format("%d_%d", enemyWorm.position.x, enemyWorm.position.y);
                 if (cells.contains(enemyPosition)) {
-                    return enemyWorm;
+                    wormInRange.add(enemyWorm);
                 }
             }
         }
 
-        return null;
+        return wormInRange;
     }
+
+    private List<CellandBombDamage> getAllBombedLocation() {
+        List<CellandBombDamage> bombedLocation = new ArrayList<>();
+        if(currentWorm.profession.equals("Agent")){
+            if(currentWorm.bananaBomb.count > 0){
+                for (Cell[] cell: gameState.map){
+                    for(Cell bombedCell : cell){
+                        if (bombedCell.type != CellType.DEEP_SPACE && euclideanDistance(currentWorm.position.x,currentWorm.position.y,bombedCell.x,bombedCell.y) <= currentWorm.bananaBomb.damageRadius){
+                            CellandBombDamage newElement = calculateBombDamage(bombedCell);
+                            if (newElement != null) {
+                                bombedLocation.add(newElement);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return bombedLocation;
+    }
+
+    private CellandBombDamage calculateBombDamage(Cell bombedCell){
+        int damageToUs = 0;
+        int damageToEnemy = 0;
+        if (bombedCell.occupier != null){
+            if (bombedCell.occupier.playerId == opponent.id && bombedCell.occupier.health>0){
+                damageToEnemy += 20;
+            } else if (bombedCell.occupier.playerId == myPlayer.id && bombedCell.occupier.health>0)  {
+                damageToUs += 20;
+            }
+        }
+        for (Direction direction : Direction.values()) {
+            for (int directionMultiplier = 1; directionMultiplier <= currentWorm.bananaBomb.damageRadius; directionMultiplier++) {
+                int coordinateX = bombedCell.x + (directionMultiplier * direction.x);
+                int coordinateY = bombedCell.y + (directionMultiplier * direction.y);
+                if (!isValidCoordinate(coordinateX, coordinateY)) {
+                    break;
+                }
+                if (euclideanDistance(bombedCell.x, bombedCell.y, coordinateX, coordinateY) > currentWorm.bananaBomb.damageRadius) {
+                    break;
+                }
+                Cell cell = gameState.map[coordinateY][coordinateX];
+                if (cell.occupier != null){
+                    if (cell.occupier.playerId == opponent.id && cell.occupier.health>0){
+                        damageToEnemy += 20-(directionMultiplier*5);
+                    } else if (cell.occupier.playerId == myPlayer.id && cell.occupier.health>0)  {
+                        damageToUs += 20-(directionMultiplier*5);
+                    }
+                }
+
+            }
+        }
+        if (damageToUs == 0 && damageToEnemy >= 20){
+            return new CellandBombDamage(bombedCell,damageToEnemy);
+        } else {
+            return  null;
+        }
+    }
+
 
     private Worm getClosestOpponent(){
         Worm resultWorm = null;

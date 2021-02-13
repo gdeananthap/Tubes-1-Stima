@@ -9,6 +9,10 @@ public class Worm {
     @SerializedName("health")
     public int health;
 
+    public int getHealth(){
+        return health;
+    }
+
     @SerializedName("position")
     public Position position;
 
