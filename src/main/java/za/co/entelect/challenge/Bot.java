@@ -300,12 +300,12 @@ public class Bot {
         for (Worm enemyWorm : opponent.worms){
             if (enemyWorm.health > 0) {
                 Position enemyPos = enemyWorm.position;
-                List<Cell> curWormCells = constructFireDirectionLines(enemyWorm, 4)
+                List<Cell> curEnemyWormCells = constructFireDirectionLines(enemyWorm, 4)
                     .stream()
                     .flatMap(List::stream)
                     .collect(Collectors.toList());
 
-                cells.addAll(curWormCells);
+                cells.addAll(curEnemyWormCells);
             }
         }
 
