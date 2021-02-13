@@ -5,7 +5,6 @@ public class Snowball {
     @SerializedName("freezeDuration")
     public  int freezeDuration;
 
-
     @SerializedName("range")
     public int range;
 

@@ -25,6 +25,20 @@ public class Bot {
         private int damageToEnemy;
     }
 
+    public class CellandFreezeCount {
+        public CellandFreezeCount(Cell x, int y){
+            cell = x;
+            freezeCount = y;
+        }
+
+        public int getFreezeCount() {
+            return freezeCount;
+        }
+
+        private Cell cell;
+        private int freezeCount;
+    }
+
     private Random random;
     private GameState gameState;
     private Opponent opponent;
@@ -152,6 +166,14 @@ public class Bot {
             return new BananaCommand(bombedLocation.get(0).cell.x,bombedLocation.get(0).cell.y);
         }
 
+        List<CellandFreezeCount> freezedLocation = new ArrayList<>();
+        freezedLocation= getFreezedLocation();
+        if (!freezedLocation.isEmpty()){
+            freezedLocation.sort(Comparator.comparing(CellandFreezeCount::getFreezeCount).reversed());
+            System.out.println("Freezing enemy worm");
+            return new SnowballCommand(freezedLocation.get(0).cell.x,freezedLocation.get(0).cell.y);
+        }
+
         List<Worm> shootedEnemyWorm = new ArrayList<>();
         shootedEnemyWorm = getAllShootedWorm();
         if (!shootedEnemyWorm.isEmpty()){
@@ -212,7 +234,7 @@ public class Bot {
             if(currentWorm.bananaBomb.count > 0){
                 for (Cell[] cell: gameState.map){
                     for(Cell bombedCell : cell){
-                        if (bombedCell.type != CellType.DEEP_SPACE && euclideanDistance(currentWorm.position.x,currentWorm.position.y,bombedCell.x,bombedCell.y) <= currentWorm.bananaBomb.damageRadius){
+                        if (bombedCell.type != CellType.DEEP_SPACE && euclideanDistance(currentWorm.position.x,currentWorm.position.y,bombedCell.x,bombedCell.y) <= currentWorm.bananaBomb.range){
                             CellandBombDamage newElement = calculateBombDamage(bombedCell);
                             if (newElement != null) {
                                 bombedLocation.add(newElement);
@@ -263,6 +285,77 @@ public class Bot {
         }
     }
 
+    private List<CellandFreezeCount> getFreezedLocation() {
+        List<CellandFreezeCount> freezedLocation = new ArrayList<>();
+        if(currentWorm.profession.equals("Technologist")){
+            if(currentWorm.snowballs.count > 0){
+                for (Cell[] cell: gameState.map){
+                    for(Cell freezedCell : cell){
+                        if (freezedCell.type != CellType.DEEP_SPACE && euclideanDistance(currentWorm.position.x,currentWorm.position.y,freezedCell.x,freezedCell.y) <= currentWorm.snowballs.range){
+                            CellandFreezeCount newElement = calculateFreezeCount(freezedCell);
+                            if (newElement != null) {
+                                freezedLocation.add(newElement);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return freezedLocation;
+    }
+
+    private CellandFreezeCount calculateFreezeCount(Cell freezedCell){
+        int freezedTeammate = 0;
+        int freezedEnemy = 0;
+        if (freezedCell.occupier != null){
+            if (freezedCell.occupier.playerId == opponent.id && freezedCell.occupier.health>0){
+                if (freezedCell.occupier.frozenTime > 0){
+                    return null;
+                } else {
+                    freezedEnemy += 1;
+                }
+            } else if (freezedCell.occupier.playerId == myPlayer.id && freezedCell.occupier.health>0)  {
+                freezedTeammate += 1;
+            }
+        }
+        for (Direction direction : Direction.values()) {
+            for (int directionMultiplier = 1; directionMultiplier <= currentWorm.snowballs.freezeRadius; directionMultiplier++) {
+                int coordinateX = freezedCell.x + (directionMultiplier * direction.x);
+                int coordinateY = freezedCell.y + (directionMultiplier * direction.y);
+                if (!isValidCoordinate(coordinateX, coordinateY)) {
+                    break;
+                }
+                if (euclideanDistance(freezedCell.x, freezedCell.y, coordinateX, coordinateY) > currentWorm.snowballs.freezeRadius) {
+                    break;
+                }
+                Cell cell = gameState.map[coordinateY][coordinateX];
+                if (cell.occupier != null){
+                    if (cell.occupier.playerId == opponent.id && cell.occupier.health>0){
+                        if (cell.occupier.frozenTime > 0){
+                            return null;
+                        } else {
+                            freezedEnemy += 1;
+                        }
+                    } else if (cell.occupier.playerId == myPlayer.id && cell.occupier.health>0)  {
+                        freezedTeammate += 1;
+                    }
+                }
+
+            }
+        }
+        int livingEnemy = 0;
+        for(Worm enemyWorm : opponent.worms){
+            if (enemyWorm.health>0) {
+                livingEnemy ++;
+            }
+        }
+        // Belum ditambahin konditional kalo musuh yang ke freeze bakal digebuk musuh
+        if ((freezedTeammate == 0 && freezedEnemy >= livingEnemy-1 ) ||(freezedTeammate == 0 && freezedEnemy >= 1 && gameState.currentRound>150)){
+            return new CellandFreezeCount(freezedCell,freezedEnemy);
+        } else {
+            return  null;
+        }
+    }
 
     private Worm getClosestOpponent(){
         Worm resultWorm = null;
