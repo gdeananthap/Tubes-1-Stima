@@ -90,31 +90,6 @@ public class Bot {
         }
     }
 
-    Command GetToCentre(){
-        //  Mencoba gerak ke tengah
-        //  Center Class Declaration
-        Position Center = new Position();
-        Center.x = 16;
-        Center.y = 16;
-        // Greedy by Lava Location
-        int currRound = gameState.currentRound;
-        int currWormDistanceToCenter = euclideanDistance(currentWorm.position.x,currentWorm.position.y,Center.x, Center.y);
-        // Apakah layak mendekat ke tengah
-        if ((currRound >= 70 && currWormDistanceToCenter >= 14)||(currRound >= 140 && currWormDistanceToCenter >= 10)||(currRound >= 210 && currWormDistanceToCenter >= 7)||(currRound >= 240 && currWormDistanceToCenter >= 5)||(currRound >= 320 && currWormDistanceToCenter >= 3)) {
-            Direction toCentre = resolveDirection(currentWorm.position, Center);
-            Cell SelectedBlock = gameState.map[currentWorm.position.y + toCentre.y][currentWorm.position.x + toCentre.x];
-            if (SelectedBlock.type == CellType.AIR) {
-                return new MoveCommand(SelectedBlock.x, SelectedBlock.y);
-            } else if (SelectedBlock.type == CellType.DIRT) {
-                return new DigCommand(SelectedBlock.x, SelectedBlock.y);
-            } else {
-                return null;
-            }
-        } else {
-            return null;
-        }
-    }
-
     boolean wormAlone(){
         boolean alone = true;
         for (Worm myWorm : myPlayer.worms){
@@ -188,7 +163,6 @@ public class Bot {
     private Command escapeFromDanger(){
         List<MoveCommand> safeMove = getAllSafeMoveCommand(getAllMoveCommand());
         List<DigCommand> safeDig = getAllSafeDigCommand(getAllDigCommand());
-        MoveCommand notSafeMove = safestMoveCommand(getAllMoveCommand());
         List<Worm> shootedEnemyWorm = getAllShootedWorm();
         if (!safeMove.isEmpty()){
             return safestMoveCommand(safeMove);
@@ -199,11 +173,9 @@ public class Bot {
             return new ShootCommand(direction);
         } else if (!safeDig.isEmpty()){
             return safestDigCommand(safeDig);
-        } else if(notSafeMove!=null){
-            return notSafeMove;
         } else {
             System.out.println("Hmm i dont know what to do(?)");
-            return new DoNothingCommand();
+            return null;
         }
     }
     private List<MoveCommand> getAllMoveCommand(){
@@ -651,16 +623,27 @@ public class Bot {
             }
         }
 
+        //  Regardless of our worm in danger or not, if enemy is targetting out agent/technologist and we can bomb/freeze them with efficiency then bomb/freeze them
+
+        // Enemies maybe targetting our agent or our agent found good spot to bomb
+        if (!bombedLocation.isEmpty()){
+            bombedLocation.sort(Comparator.comparing(CellandBombDamage::getDamageToEnemy).reversed());
+            System.out.println("Bombing enemy worm");
+            return new BananaCommand(bombedLocation.get(0).cell.x,bombedLocation.get(0).cell.y);
+        }
+
+        // Enemies maybe targetting our technologist or our technologist found good spot to freeze
+        if (!freezedLocation.isEmpty()){
+            freezedLocation.sort(Comparator.comparing(CellandFreezeCount::getFreezeCount).reversed());
+            System.out.println("Freezing enemy worm");
+            return new SnowballCommand(freezedLocation.get(0).cell.x,freezedLocation.get(0).cell.y);
+        }
+
         //  If our worm in danger
         if (dangerousCell.contains(myWormCell)){
             System.out.println("Our worm maybe in danger, choose what to do wisely");
-            // Enemy maybe targeting our Agent
-            if (!bombedLocation.isEmpty()){
-                bombedLocation.sort(Comparator.comparing(CellandBombDamage::getDamageToEnemy).reversed());
-                System.out.println("Agent is targeted, bomb enemy worm");
-                return new BananaCommand(bombedLocation.get(0).cell.x,bombedLocation.get(0).cell.y);
                 // Maybe we are targeted by banana(?)
-            } else if (shootedEnemyWorm.isEmpty()){
+            if (shootedEnemyWorm.isEmpty() && escapeFromDanger()!=null){
                 System.out.println("Escape that shit");
                 return escapeFromDanger();
             } else {
@@ -674,7 +657,7 @@ public class Bot {
                     System.out.println("Attack with desperate");
                     Direction direction = resolveDirection(currentWorm.position, shootedEnemyWorm.get(0).position);
                     return new ShootCommand(direction);
-                } else {
+                } else if(escapeFromDanger()!=null) {
                     System.out.println("Escape that shit");
                     return escapeFromDanger();
                 }
@@ -683,19 +666,6 @@ public class Bot {
 
 
         //  Attacking without danger
-
-        if (!bombedLocation.isEmpty()){
-            bombedLocation.sort(Comparator.comparing(CellandBombDamage::getDamageToEnemy).reversed());
-            System.out.println("Bombing enemy worm");
-            return new BananaCommand(bombedLocation.get(0).cell.x,bombedLocation.get(0).cell.y);
-        }
-
-        if (!freezedLocation.isEmpty()){
-            freezedLocation.sort(Comparator.comparing(CellandFreezeCount::getFreezeCount).reversed());
-            System.out.println("Freezing enemy worm");
-            return new SnowballCommand(freezedLocation.get(0).cell.x,freezedLocation.get(0).cell.y);
-        }
-
         if (!shootedEnemyWorm.isEmpty()){
             shootedEnemyWorm.sort(Comparator.comparing(Worm::getHealth));
             System.out.println("Shooting worm");
