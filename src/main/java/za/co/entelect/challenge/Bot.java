@@ -43,7 +43,7 @@ public class Bot {
     private Random random;
     private GameState gameState;
     private Opponent opponent;
-    private  MyPlayer myPlayer;
+    private MyPlayer myPlayer;
     private MyWorm currentWorm;
 
 
@@ -81,7 +81,7 @@ public class Bot {
         // Mencoba gerak lurus ke pos
         Direction toPos = resolveDirection(currentWorm.position, pos);
         Cell SelectedBlock = gameState.map[currentWorm.position.y + toPos.y][currentWorm.position.x + toPos.x];
-        if (SelectedBlock.type == CellType.AIR) {
+        if (SelectedBlock.type == CellType.AIR && SelectedBlock.occupier == null) {
             return new MoveCommand(SelectedBlock.x, SelectedBlock.y);
         } else if (SelectedBlock.type == CellType.DIRT) {
             return new DigCommand(SelectedBlock.x, SelectedBlock.y);
@@ -564,7 +564,7 @@ public class Bot {
         for (int i = x - 1; i <= x + 1; i++) {
             for (int j = y - 1; j <= y + 1; j++) {
                 // Don't include the current position
-                if (i != x && j != y && isValidCoordinate(i, j)) {
+                if (!(i == x && j == y) && isValidCoordinate(i, j)) {
                     cells.add(gameState.map[j][i]);
                 }
             }
@@ -611,6 +611,8 @@ public class Bot {
         Set<Cell> lavaAndAdjacent = getLavaAndAdjacent();
         List<CellandBombDamage> bombedLocation = getAllBombedLocation();
         List<CellandFreezeCount> freezedLocation = getFreezedLocation();
+        List<MoveCommand> allMove = getAllMoveCommand();
+        List<DigCommand> allDig = getAllDigCommand();
         List<Worm> shootedEnemyWorm = getAllShootedWorm(currentWorm);
 
         Set<Cell> dangerousCell = getDangerousCells();
@@ -618,20 +620,34 @@ public class Bot {
 
         // If our worm in lava or next to lava
         if (lavaAndAdjacent.contains(myWormCell)) {
-            System.out.println("Our worm maybe in or next to lava");
-            List<MoveCommand> nonLavaMoves = getAllMoveCommand();
-            List<DigCommand> nonLavaDigs = getAllDigCommand();
-            nonLavaMoves.removeIf(move -> lavaAndAdjacent.contains(gameState.map[move.getY()][move.getX()]));
-            nonLavaDigs.removeIf(dig -> lavaAndAdjacent.contains(gameState.map[dig.getY()][dig.getX()]));
+            System.out.println("Our worm is in or next to lava");
+            List<MoveCommand> nonLavaMoves = allMove.stream().filter(move -> !lavaAndAdjacent.contains(gameState.map[move.getY()][move.getX()])).collect(Collectors.toList());
+            List<DigCommand> nonLavaDigs = allDig.stream().filter(move -> !lavaAndAdjacent.contains(gameState.map[move.getY()][move.getX()])).collect(Collectors.toList());
+            List<MoveCommand> nonLavaAndSaveMoves = getAllSafeMoveCommand(nonLavaMoves);
+
+            if (!nonLavaAndSaveMoves.isEmpty()) {
+                System.out.println("Moving to center while avoiding lava and danger");
+                return chooseMoveCommandToCenter(nonLavaAndSaveMoves);
+            }
 
             if (!nonLavaMoves.isEmpty()) {
-                System.out.println("Moving to center");
+                System.out.println("Moving to center while avoiding lava");
                 return chooseMoveCommandToCenter(nonLavaMoves);
             }
 
             if (!nonLavaDigs.isEmpty()) {
-                System.out.println("Digging to center");
+                System.out.println("Digging to center while avoiding lava");
                 return chooseDigCommandToCenter(nonLavaDigs);
+            }
+
+            if (!allMove.isEmpty()) {
+                System.out.println("Moving to center");
+                return chooseMoveCommandToCenter(allMove);
+            }
+
+            if (!allDig.isEmpty()) {
+                System.out.println("Digging to center");
+                return chooseDigCommandToCenter(allDig);
             }
 
             Command toCentre = moveOrDigTo(center);
@@ -662,7 +678,7 @@ public class Bot {
         if (dangerousCell.contains(myWormCell)){
             System.out.println("Our worm maybe in danger, choose what to do wisely");
                 // Maybe we are targeted by banana(?)
-            if (shootedEnemyWorm.isEmpty() && escapeFromDanger()!=null){
+            if (escapeFromDanger()!=null){
                 System.out.println("Escape that shit");
                 return escapeFromDanger();
             } else {
