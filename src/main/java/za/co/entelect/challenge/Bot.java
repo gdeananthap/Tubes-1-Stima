@@ -312,6 +312,29 @@ public class Bot {
         return safestDig;
     }
 
+    private MoveCommand getSelectMoves(){
+        if(myPlayer.remainSelect == 0){
+            return null;
+        }
+        System.out.println("Remaining Select : " + myPlayer.remainSelect);
+
+        List<MoveCommand> potentialMove = new ArrayList<>();
+        for(Worm myWorm : myPlayer.worms){
+            if (myWorm.health<0 || myWorm == currentWorm){
+                continue;
+            }
+            if(myWorm.frozenTime > 0){
+                continue;
+            }
+//            if(shouldEngage)
+            List <MoveCommand> moves =  getAllSafeMoveCommand(getAllMoveCommand()); // harusnya valid moves(?)
+            //tbc
+
+        }
+
+        return null;
+    }
+
     private List<Worm> getAllShootedWorm() {
         Set<String> cells = constructFireDirectionLines(currentWorm, currentWorm.weapon.range)
                 .stream()
