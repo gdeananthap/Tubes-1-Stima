@@ -749,22 +749,27 @@ public class Bot {
         //  If our worm in danger
         if (dangerousCell.contains(myWormCell)){
             System.out.println("Our worm maybe in danger, choose what to do wisely");
-            // The enemy that make us in danger are freezed
-            if(shootedEnemyWorm.size()==1 && shootedEnemyWorm.get(0).frozenTime>0){
-                System.out.println("Attack that freezed enemy");
-                Direction direction = resolveDirection(currentWorm.position, shootedEnemyWorm.get(0).position);
-                return new ShootCommand(direction);
-                // Is it okay to battle the enemy?
-            } else if(shootedEnemyWorm.size()==1 && mustBattle(shootedEnemyWorm.get(0))) {
-                System.out.println("Attack with desperate");
-                Direction direction = resolveDirection(currentWorm.position, shootedEnemyWorm.get(0).position);
-                return new ShootCommand(direction);
-            } else if(escapeFromDanger()!=null) {
+                // Maybe we are targeted by banana(?)
+            if (escapeFromDanger()!=null && shootedEnemyWorm.size() == 0){
                 System.out.println("Escape that shit");
                 return escapeFromDanger();
+            } else {
+                // The enemy that make us in danger are freezed
+                if(shootedEnemyWorm.size()==1 && shootedEnemyWorm.get(0).frozenTime>0){
+                    System.out.println("Attack that freezed enemy");
+                    Direction direction = resolveDirection(currentWorm.position, shootedEnemyWorm.get(0).position);
+                    return new ShootCommand(direction);
+                    // Is it okay to battle the enemy?
+                } else if(shootedEnemyWorm.size()==1 && mustBattle(shootedEnemyWorm.get(0))) {
+                    System.out.println("Attack with desperate");
+                    Direction direction = resolveDirection(currentWorm.position, shootedEnemyWorm.get(0).position);
+                    return new ShootCommand(direction);
+                } else if(escapeFromDanger()!=null) {
+                    System.out.println("Escape that shit");
+                    return escapeFromDanger();
+                }
             }
         }
-
 
         //  Attacking without danger
         if (!shootedEnemyWorm.isEmpty()){
@@ -787,13 +792,14 @@ public class Bot {
             System.out.println("Gabut jadi farming");
             return safestDigCommand(safeDig);
         } else{
-            if(isEnemyGather()){
-                MyWorm closestFriend = findClosestFriendWorm();
-                if(closestFriend != null && moveOrDigTo(closestFriend.position) != null){
-                    System.out.println("Kabur ke teman terdekat");
-                    return moveOrDigTo(closestFriend.position);
-                }
-            }else if(!isEnemyGather()) {
+//            if(isEnemyGather()){
+//                MyWorm closestFriend = findClosestFriendWorm();
+//                if(closestFriend != null && moveOrDigTo(closestFriend.position) != null){
+//                    System.out.println("Kabur ke teman terdekat");
+//                    return moveOrDigTo(closestFriend.position);
+//                }
+//            }else
+                if(!isEnemyGather()) {
                 Worm closestEnemy = getClosestOpponent();
                 if (closestEnemy != null && moveOrDigTo(closestEnemy.position) != null) {
                     System.out.println("Deketin musuh terdekat");
