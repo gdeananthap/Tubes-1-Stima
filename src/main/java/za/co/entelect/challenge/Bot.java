@@ -727,7 +727,7 @@ public class Bot {
         // If our worm in lava or next to lava
         if (lavaAndAdjacent.contains(myWormCell) && (gameState.currentRound < 320 || !dangerousCell.contains(myWormCell))) {
             System.out.println("Our worm is in or next to lava");
-            List<MoveCommand> nonLavaMoves = allMove.stream().filter(move -> !lavaAndAdjacent.contains(gameState.map[move.getY()][move.getX()])).collect(Collectors.toList());
+            List<MoveCommand> nonLavaMoves = filterMoveByCells(allMove, lavaAndAdjacent);
             List<DigCommand> nonLavaDigs = allDig.stream().filter(dig -> !lavaAndAdjacent.contains(gameState.map[dig.getY()][dig.getX()])).collect(Collectors.toList());
             List<MoveCommand> nonLavaAndSaveMoves = getAllSafeMoveCommand(nonLavaMoves);
 
