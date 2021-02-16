@@ -274,6 +274,7 @@ public class Bot {
         for(DigCommand dig : allDig){
             Cell location = gameState.map[dig.getY()][dig.getX()];
             if (!dangerousCell.contains(location)){
+                System.out.println("found safe dig");
                 safeDig.add(dig);
             }
         }
@@ -370,15 +371,15 @@ public class Bot {
                 Cell cell = gameState.map[coordinateY][coordinateX];
                 if (cell.occupier != null){
                     if (cell.occupier.playerId == opponent.id && cell.occupier.health>0){
-                        damageToEnemy += 20-(directionMultiplier*5);
+                        damageToEnemy += 20-(directionMultiplier*7);
                     } else if (cell.occupier.playerId == myPlayer.id && cell.occupier.health>0)  {
-                        damageToUs += 20-(directionMultiplier*5);
+                        damageToUs += 20-(directionMultiplier*7);
                     }
                 }
 
             }
         }
-        if (damageToUs == 0 && (damageToEnemy > 20 ||(damageToEnemy >= 20 && livingEnemy() < 3))){
+        if (damageToUs == 0 && (damageToEnemy >= 26 ||(damageToEnemy >= 20 && livingEnemy() < 3))){
             return new CellandBombDamage(bombedCell,damageToEnemy);
         } else {
             return  null;
@@ -756,7 +757,7 @@ public class Bot {
                 return new ShootCommand(direction);
                 // Is it okay to battle the enemy?
             } else if(shootedEnemyWorm.size()==1 && mustBattle(shootedEnemyWorm.get(0))) {
-                System.out.println("Attack with desperate");
+                System.out.println("Attack with opportunity");
                 Direction direction = resolveDirection(currentWorm.position, shootedEnemyWorm.get(0).position);
                 return new ShootCommand(direction);
             } else if(escapeFromDanger()!=null) {
@@ -782,7 +783,7 @@ public class Bot {
         }
 
         // Kalo Gabut
-        List<DigCommand> safeDig = getAllSafeDigCommand(allDig);
+        List<DigCommand> safeDig = getAllSafeDigCommand(getAllDigCommand());
         if(!safeDig.isEmpty()){
             System.out.println("Gabut jadi farming");
             return safestDigCommand(safeDig);
@@ -793,7 +794,8 @@ public class Bot {
                     System.out.println("Kabur ke teman terdekat");
                     return moveOrDigTo(closestFriend.position);
                 }
-            }else if(!isEnemyGather()) {
+            }else
+                if(!isEnemyGather()) {
                 Worm closestEnemy = getClosestOpponent();
                 if (closestEnemy != null && moveOrDigTo(closestEnemy.position) != null) {
                     System.out.println("Deketin musuh terdekat");
