@@ -163,15 +163,17 @@ public class Bot {
     }
 
     private Command escapeFromDanger(){
+        Set<Cell> lavaAndAdjacent = getLavaAndAdjacent();
         List<MoveCommand> safeMove = getAllSafeMoveCommand(getAllMoveCommand());
+        List<MoveCommand> nonLavaSafeMove = filterMoveByCells(safeMove, lavaAndAdjacent);
         List<DigCommand> safeDig = getAllSafeDigCommand(getAllDigCommand());
         List<Worm> shootedEnemyWorm = getAllShootedWorm(currentWorm);
         List<Worm> shootedAndFreezedEnemyWorm = getFreezedWorm(shootedEnemyWorm);
-        Set<Cell> predictedDangerCells = getPredictedDangerousCells();
-        List<MoveCommand> predictedSaveMoves = getAllMoveCommand().stream().filter(move -> !predictedDangerCells.contains(gameState.map[move.getY()][move.getX()])).collect(Collectors.toList());
+        Set<Cell> predictedDangerCells = getPredictedDangerousCells(false);
+        List<MoveCommand> predictedSaveMoves = filterMoveByCells(filterMoveByCells(getAllMoveCommand(), lavaAndAdjacent), predictedDangerCells);
 
-        if (!safeMove.isEmpty()) {
-            return safestMoveCommand(safeMove);
+        if (!nonLavaSafeMove.isEmpty()) {
+            return safestMoveCommand(nonLavaSafeMove);
         // Attack Freezed Worm
         } else if (!shootedAndFreezedEnemyWorm.isEmpty()){
             shootedAndFreezedEnemyWorm.sort(Comparator.comparing(Worm::getHealth));
@@ -577,18 +579,24 @@ public class Bot {
         return cells;
     }
 
-    private Set<Cell> getPredictedDangerousCells() {
+    private Set<Cell> getPredictedDangerousCells(boolean onlyCurrent) {
         Set<Cell> cells = new HashSet<>();
         for (Worm enemyWorm : opponent.worms){
             if (enemyWorm.health > 0) {
                 List<List<Cell>> FireDirections = constructFireDirectionLines(enemyWorm, 4);
-                for (List<Cell> fd : FireDirections) {
-                    for (Worm worm : gameState.myPlayer.worms) {
-                        if (worm.health > 0) {
-                            if (fd.contains(gameState.map[worm.position.y][worm.position.x])) {
-                                cells.addAll(fd);
+                if (enemyWorm.id == opponent.opponentCurrentWormId) {
+                    for (List<Cell> fd : FireDirections) {
+                        for (Worm worm : gameState.myPlayer.worms) {
+                            if (worm.health > 0) {
+                                if (fd.contains(gameState.map[worm.position.y][worm.position.x])) {
+                                    cells.addAll(fd);
+                                }
                             }
                         }
+                    }
+                } else {
+                    if (!onlyCurrent) {
+                        cells.addAll(FireDirections.stream().flatMap(List::stream).collect(Collectors.toList()));
                     }
                 }
             }
@@ -671,6 +679,10 @@ public class Bot {
         return Direction.valueOf(builder.toString());
     }
 
+    public List<MoveCommand> filterMoveByCells(List<MoveCommand> commands, Set<Cell> cells) {
+        return commands.stream().filter(move -> !cells.contains(gameState.map[move.getY()][move.getX()])).collect(Collectors.toList());
+    }
+
     public Command run() {
 
         if(gameState.currentRound < 100){
@@ -692,11 +704,18 @@ public class Bot {
         Set<Cell> dangerousCell = getDangerousCells();
         Cell myWormCell = gameState.map[currentWorm.position.y][currentWorm.position.x];
 
+
+        if (livingMyOwnWorm() == 1 && currentWorm.health < 8) {
+            System.out.println("Kaboor");
+            Set<Cell> predictedCurrentEnemyShot = getPredictedDangerousCells(true);
+            return chooseMoveCommandToPosition(filterMoveByCells(allMove, predictedCurrentEnemyShot), center);
+        }
+
         // If our worm in lava or next to lava
         if (lavaAndAdjacent.contains(myWormCell) && (gameState.currentRound < 320 || !dangerousCell.contains(myWormCell))) {
             System.out.println("Our worm is in or next to lava");
             List<MoveCommand> nonLavaMoves = allMove.stream().filter(move -> !lavaAndAdjacent.contains(gameState.map[move.getY()][move.getX()])).collect(Collectors.toList());
-            List<DigCommand> nonLavaDigs = allDig.stream().filter(move -> !lavaAndAdjacent.contains(gameState.map[move.getY()][move.getX()])).collect(Collectors.toList());
+            List<DigCommand> nonLavaDigs = allDig.stream().filter(dig -> !lavaAndAdjacent.contains(gameState.map[dig.getY()][dig.getX()])).collect(Collectors.toList());
             List<MoveCommand> nonLavaAndSaveMoves = getAllSafeMoveCommand(nonLavaMoves);
 
             if (!nonLavaAndSaveMoves.isEmpty()) {
@@ -718,16 +737,6 @@ public class Bot {
                 System.out.println("Digging to center while avoiding lava");
                 return chooseDigCommandToCenter(nonLavaDigs);
             }
-//            if (!allDig.isEmpty()) {
-//                System.out.println("Digging to center");
-//                return chooseDigCommandToCenter(allDig);
-//            }
-//
-//            Command toCentre = moveOrDigTo(center);
-//            if (toCentre != null){
-//                System.out.println("Going straight to center");
-//                return toCentre;
-//            }
         }
 
         //  Regardless of our worm in danger or not, if enemy is targetting out agent/technologist and we can bomb/freeze them with efficiency then bomb/freeze them
@@ -788,7 +797,7 @@ public class Bot {
             System.out.println("Gabut jadi farming");
             return safestDigCommand(safeDig);
         } else{
-            if(isEnemyGather()){
+            if(isEnemyGather() && livingMyOwnWorm() > 1){
                 MyWorm closestFriend = findClosestFriendWorm();
                 if(closestFriend != null && moveOrDigTo(closestFriend.position) != null){
                     System.out.println("Kabur ke teman terdekat");
@@ -806,9 +815,9 @@ public class Bot {
 
         List<Cell> surroundingBlocks = getSurroundingCells(currentWorm.position.x, currentWorm.position.y);
         int cellIdx = random.nextInt(surroundingBlocks.size());
-
+        System.out.println("Random ae");
         Cell block = surroundingBlocks.get(cellIdx);
-        if (block.type == CellType.AIR) {
+        if (block.type == CellType.AIR && block.occupier == null) {
             return new MoveCommand(block.x, block.y);
         } else if (block.type == CellType.DIRT) {
             return new DigCommand(block.x, block.y);
