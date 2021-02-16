@@ -707,8 +707,18 @@ public class Bot {
         Set<Cell> dangerousCell = getDangerousCells();
         Cell myWormCell = gameState.map[currentWorm.position.y][currentWorm.position.x];
 
+        if (myPlayer.remainSelect > 0) {
+            for (MyWorm myWorm : myPlayer.worms) {
+                List<Worm> shot = getAllShootedWorm(myWorm);
+                for (Worm shotWorm : shot) {
+                    if (myWorm.health > 8 && myWorm.frozenTime == 0 && shotWorm.frozenTime > 1) {
+                        return new ShootCommand(resolveDirection(myWorm.position, shotWorm.position), myWorm.id);
+                    }
+                }
+            }
+        }
 
-        if (livingMyOwnWorm() == 1 && currentWorm.health < 8) {
+        if (livingMyOwnWorm() == 1 && currentWorm.health <= 8) {
             System.out.println("Kaboor");
             Set<Cell> predictedCurrentEnemyShot = getPredictedDangerousCells(true);
             return chooseMoveCommandToPosition(filterMoveByCells(allMove, predictedCurrentEnemyShot), center);
