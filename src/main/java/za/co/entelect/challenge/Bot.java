@@ -137,12 +137,15 @@ public class Bot {
     Command toOtherWorm (Worm target){
     //  Mendekat ke worm lain (yang paling dekat)
         if (target != null){
+            List<MoveCommand> allMove = getAllMoveCommand();
             Direction toOther = resolveDirection(currentWorm.position, target.position);
             Cell SelectedBlock = gameState.map[currentWorm.position.y + toOther.y][currentWorm.position.x + toOther.x];
-            if (SelectedBlock.type == CellType.AIR) {
+            if (SelectedBlock.type == CellType.AIR && SelectedBlock.occupier != null) {
                 return new MoveCommand(SelectedBlock.x, SelectedBlock.y, selected);
             } else if (SelectedBlock.type == CellType.DIRT) {
                 return new DigCommand(SelectedBlock.x, SelectedBlock.y, selected);
+            } else if (!allMove.isEmpty()) {
+                return chooseMoveCommandToPosition(allMove, target.position);
             } else {
                 return null;
             }
