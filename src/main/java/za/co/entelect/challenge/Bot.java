@@ -106,11 +106,7 @@ public class Bot {
                 }else{
                     int distance = euclideanDistance(enemyWorm.position.x, enemyWorm.position.y, otherEnemyWorm.position.x, otherEnemyWorm.position.y);
                     // Jikaa jarak antar worm < 6 dapat dikatakan mereka berdekatan
-                    if(distance < 6){
-                        isOtherWormClose = true;
-                    }else{
-                        isOtherWormClose = false;
-                    }
+                    isOtherWormClose = distance < 6;
                 }
             }
             // Jika semua worm berdekatan, maka dapat dikatakan semua worm lawan sedang berkumpul
@@ -195,24 +191,6 @@ public class Bot {
                     minimum = distance;
                     resultWorm = enemyWorm;
                 }
-            } else {
-                continue;
-            }
-        }
-        return resultWorm;
-    }
-
-    private Worm getLowestHealthOpponent(){
-        // Method ini digunakan untuk mengetahui worm lawan yang masih hidup dengan health point terendah
-        Worm resultWorm = null;
-        int minimumHealth = 999999;
-        for(Worm enemyWorm : opponent.worms) {
-            // Cek apakah worm tersebut masih hidup dan health pointnya terendah
-            if ((enemyWorm.health > 0) && (enemyWorm.health < minimumHealth)) {
-                minimumHealth = enemyWorm.health;
-                resultWorm = enemyWorm;
-            } else {
-                continue;
             }
         }
         return resultWorm;
@@ -249,8 +227,9 @@ public class Bot {
         int noTerdekat = noWormTerdekat.get(0);
         boolean diincar = true;
         for (int i = 0 ; i < noWormTerdekat.size(); i++){
-            if (noWormTerdekat.get(i)!=noTerdekat){
+            if (noWormTerdekat.get(i) != noTerdekat) {
                 diincar = false;
+                break;
             }
         }
         if (diincar){
@@ -310,10 +289,7 @@ public class Bot {
                 if (cell.type == CellType.LAVA) {
                     cells.add(cell);
                     // Data semua cell disekitar cell bertipe lava
-                    List<Cell> surrounding = getSurroundingCells(cell.x, cell.y);
-                    for (Cell surround : surrounding) {
-                        cells.add(surround);
-                    }
+                    cells.addAll(getSurroundingCells(cell.x, cell.y));
                 }
             }
         }
@@ -660,7 +636,7 @@ public class Bot {
         Set<Cell> predictedDangerCells = getPredictedDangerousCells(false);
         // Data semua move command ke sebuah cell yang merupakan irisan dari semua move yang mungkin dengan cell
         // bertipe lava dan sekitarnya dan cell prediksi yang tidak aman dari serangan worm lawan
-        List<MoveCommand> predictedSaveMoves = filterMoveByCells(filterMoveByCells(getAllMoveCommand(), lavaAndAdjacent), predictedDangerCells);
+        List<MoveCommand> predictedSafeMoves = filterMoveByCells(filterMoveByCells(getAllMoveCommand(), lavaAndAdjacent), predictedDangerCells);
 
         // Periksa jenis bahaya
         if (!nonLavaSafeMove.isEmpty()) {
@@ -675,10 +651,10 @@ public class Bot {
             System.out.println("Shooting Freezed worm");
             Direction direction = resolveDirection(currentWorm.position, shootedAndFreezedEnemyWorm.get(0).position);
             return new ShootCommand(direction);
-        } else if (!predictedSaveMoves.isEmpty()) {
+        } else if (!predictedSafeMoves.isEmpty()) {
             // Ada kemungkinan move ke cell yang diprediksi aman dari serangan lawan
             System.out.println("Moving to predicted safe cell");
-            return safestMoveCommand(predictedSaveMoves);
+            return safestMoveCommand(predictedSafeMoves);
         } else if (!shootedEnemyWorm.isEmpty()){
             // Ada musuh yang berada pada jangakauan weapon worm kita
             shootedEnemyWorm.sort(Comparator.comparing(Worm::getHealth));
@@ -872,12 +848,12 @@ public class Bot {
             System.out.println("Our worm is in or next to lava");
             List<MoveCommand> nonLavaMoves = filterMoveByCells(allMove, lavaAndAdjacent);
             List<DigCommand> nonLavaDigs = allDig.stream().filter(dig -> !lavaAndAdjacent.contains(gameState.map[dig.getY()][dig.getX()])).collect(Collectors.toList());
-            List<MoveCommand> nonLavaAndSaveMoves = getAllSafeMoveCommand(nonLavaMoves);
+            List<MoveCommand> nonLavaAndSafeMoves = getAllSafeMoveCommand(nonLavaMoves);
 
             // Move ke Non Lava cell yang aman dari jangakauan serangan worm lawan dan menuju ke tengah map
-            if (!nonLavaAndSaveMoves.isEmpty()) {
+            if (!nonLavaAndSafeMoves.isEmpty()) {
                 System.out.println("Moving to center while avoiding lava and danger");
-                return chooseMoveCommandToPosition(nonLavaAndSaveMoves, center);
+                return chooseMoveCommandToPosition(nonLavaAndSafeMoves, center);
             }
 
             // Move ke Non Lava Cell dan menuju ke tengah map
