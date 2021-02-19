@@ -1,5 +1,5 @@
 # STIMA GREEDY BOT - ENTELLECT 2019 WORMS
-Tugas Besar 2 IF 2123 Aljabar Linier dan Geometri Aplikasi Dot Product pada Sistem Temu-balik Informasi Semester I Tahun 2020/2021
+Tugas Besar 1 IF2211 Strategi Algoritma Semester II Tahun 2020/2021 Pemanfaatan Algoritma Greedy dalam Aplikasi Permainan “Worms”
 
 ## Requirements
 - Install the Java SE Development Kit 8 for your environment here: http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
